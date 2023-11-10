@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/kafka-go/protocol"
 )
 
-const WASM_KAFKA_PROTOCOL uint8 = 100
+const WASM_KAFKA_PROTOCOL uint8 = 1
 
 type kafkaParser struct{}
 
@@ -27,10 +27,12 @@ func (p kafkaParser) OnHttpResp(ctx *sdk.HttpRespCtx) sdk.Action {
 }
 
 func (p kafkaParser) OnCheckPayload(ctx *sdk.ParseCtx) (uint8, string) {
-	if ctx.L4 != sdk.UDP || ctx.DstPort != 53 {
+	if ctx.L4 != sdk.TCP {
 		return 0, ""
 	}
-
+	if ctx.DstPort < 9092 || ctx.DstPort > 9093 {
+		return 0, ""
+	}
 	payload, err := ctx.GetPayload()
 	if err != nil {
 		sdk.Error("get payload fail: %v", err)
@@ -144,19 +146,25 @@ func decodeHeader(b []byte) (bool, *reqHeader) {
 	}
 	var length = readInt32(b[:4])
 	if length != int32(len(b))-4 {
+		sdk.Warn("length not match: %d, %d", length, len(b))
 		return false, nil
 	}
 	var apikey = readInt16(b[4:6])
 	var apiversion = readInt16(b[6:8])
 	if protocol.ApiKey(apikey).String() == strconv.Itoa(int(apikey)) {
+		sdk.Warn("invalid apikey: %d", apikey)
 		return false, nil
 	}
-	if apiversion < protocol.ApiKey(apikey).MinVersion() || apiversion > protocol.ApiKey(apikey).MaxVersion() {
-		return false, nil
-	}
+	/*
+		if apiversion < protocol.ApiKey(apikey).MinVersion() || apiversion > protocol.ApiKey(apikey).MaxVersion() {
+			sdk.Warn("invalid %d apiversion: %d, minversion: %d, maxversion: %d", apikey, apiversion, protocol.ApiKey(apikey).MinVersion(), protocol.ApiKey(apikey).MaxVersion())
+			return false, nil
+		}
+	*/
 	var correlationID = readInt32(b[8:12])
 	cLen, cID := readJavaNullableString(b[12:])
 	if cLen == -1 {
+		sdk.Warn("invalid clientid: %s", cID)
 		return false, nil
 	}
 	return true, &reqHeader{
@@ -249,6 +257,6 @@ func decodeProduce(apiver int16, payload []byte) (int16, string) {
 }
 
 func main() {
-	sdk.Warn("wasm register dns parser")
+	sdk.Warn("wasm register kafka parser")
 	sdk.SetParser(kafkaParser{})
 }
