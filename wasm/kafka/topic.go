@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/kafka-go/protocol"
 )
 
-const WASM_KAFKA_PROTOCOL uint8 = 1
+const WASM_KAFKA_PROTOCOL uint8 = 100
 
 type kafkaParser struct{}
 

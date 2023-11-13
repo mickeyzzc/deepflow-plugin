@@ -5,6 +5,7 @@ go 1.21.3
 require (
 	github.com/deepflowio/deepflow-wasm-go-sdk v0.0.0-20231016072110-be61afa15717
 	github.com/segmentio/kafka-go v0.4.44
+	go.mongodb.org/mongo-driver v1.13.0
 )
 
 require (
